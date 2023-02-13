@@ -7,7 +7,7 @@ import pytesseract
 from matplotlib import pyplot as plt
 
 image_file_path = 'images/oled.jpg'
-model_file_path = 'frozen_east_text_detection.pb'
+model_file_path = 'models/frozen_east_text_detection.pb'
 min_confidence = 0.5
 width_processed = 320 #pixels
 height_processed = 320 #pixels
