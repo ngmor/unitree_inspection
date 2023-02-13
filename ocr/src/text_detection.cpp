@@ -30,15 +30,15 @@ using namespace cv::dnn;
 const char* keys =
     "{ help  h              | | Print help message. }"
     "{ input i              | | Path to input image or video file. Skip this argument to capture frames from a camera.}"
-    "{ detModel dmp         | | Path to a binary .pb file contains trained detector network.}"
+    "{ detModel dmp         | models/frozen_east_text_detection.pb | Path to a binary .pb file contains trained detector network.}"
     "{ width                | 320 | Preprocess input image by resizing to a specific width. It should be multiple by 32. }"
     "{ height               | 320 | Preprocess input image by resizing to a specific height. It should be multiple by 32. }"
-    "{ thr                  | 0.5 | Confidence threshold. }"
+    "{ thr                  | 0.9 | Confidence threshold. }"
     "{ nms                  | 0.4 | Non-maximum suppression threshold. }"
-    "{ recModel rmp         | | Path to a binary .onnx file contains trained CRNN text recognition model. "
+    "{ recModel rmp         | models/crnn_cs.onnx | Path to a binary .onnx file contains trained CRNN text recognition model. "
         "Download links are provided in doc/tutorials/dnn/dnn_text_spotting/dnn_text_spotting.markdown}"
-    "{ RGBInput rgb         |0| 0: imread with flags=IMREAD_GRAYSCALE; 1: imread with flags=IMREAD_COLOR. }"
-    "{ vocabularyPath vp    | alphabet_36.txt | Path to benchmarks for evaluation. "
+    "{ RGBInput rgb         |1| 0: imread with flags=IMREAD_GRAYSCALE; 1: imread with flags=IMREAD_COLOR. }"
+    "{ vocabularyPath vp    | models/alphabet_94.txt | Path to benchmarks for evaluation. "
         "Download links are provided in doc/tutorials/dnn/dnn_text_spotting/dnn_text_spotting.markdown}";
 
 void fourPointsTransform(const Mat& frame, const Point2f vertices[], Mat& result);
@@ -49,7 +49,8 @@ int main(int argc, char** argv)
     CommandLineParser parser(argc, argv, keys);
     parser.about("Use this script to run TensorFlow implementation (https://github.com/argman/EAST) of "
                  "EAST: An Efficient and Accurate Scene Text Detector (https://arxiv.org/abs/1704.03155v2)");
-    if (argc == 1 || parser.has("help"))
+    //if (argc == 1 || parser.has("help"))
+    if (parser.has("help"))
     {
         parser.printMessage();
         return 0;

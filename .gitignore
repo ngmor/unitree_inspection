@@ -1,6 +1,5 @@
 # Directories
 models/
-opencv2/
 
 # Prerequisites
 *.d
