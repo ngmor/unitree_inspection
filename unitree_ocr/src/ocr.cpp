@@ -53,4 +53,50 @@ namespace unitree_ocr
       cv::Scalar recMean = cv::Scalar(127.5, 127.5, 127.5);
       recognizer_.setInputParams(recScale, recInputSize, recMean);
     }
+
+    void TextDetector::detect(cv::Mat frame) {
+      //clear previous results
+      detection_results_.clear();
+
+      //Detect text in frame
+      detector_.detect(frame, detection_results_);
+      
+      //Initialize recognition results
+      recognition_results_ = std::vector<std::string>(detection_results_.size(), "");
+
+      //Recognize text in detected regions
+      for (size_t i = 0; i < detection_results_.size(); i++) {
+        const auto & quadrangle = detection_results_[i];
+
+        CV_CheckEQ(quadrangle.size(), (size_t)4, "Detection quadrangle size check");
+
+        std::vector<cv::Point2f> quadrangle_2f;
+
+        for (size_t j = 0; j < 4; j++) {
+          quadrangle_2f.emplace_back(quadrangle[j]);
+        }
+
+        //Crop frame to get detection area
+        cv::Mat cropped;
+        fourPointsTransform(frame, &quadrangle_2f[0], cropped);
+
+        //Store recognized text in results array
+        recognition_results_[i] = recognizer_.recognize(cropped);
+      }
+    }
+
+
+    void fourPointsTransform(const cv::Mat& frame, const cv::Point2f vertices[], cv::Mat& result) {
+      const cv::Size outputSize = cv::Size(100, 32);
+
+      cv::Point2f targetVertices[4] = {
+          cv::Point(0, outputSize.height - 1),
+          cv::Point(0, 0),
+          cv::Point(outputSize.width - 1, 0),
+          cv::Point(outputSize.width - 1, outputSize.height - 1)
+      };
+      cv::Mat rotationMatrix = cv::getPerspectiveTransform(vertices, targetVertices);
+
+      cv::warpPerspective(frame, result, rotationMatrix, outputSize);
+    }
 }
