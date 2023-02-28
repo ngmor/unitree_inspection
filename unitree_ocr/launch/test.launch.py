@@ -51,6 +51,12 @@ def generate_launch_description():
                         'models',
                         'crnn_cs.onnx',
                     ]),
+                'recognition.vocabulary_path':
+                    PathJoinSubstitution([
+                        FindPackageShare('unitree_ocr'),
+                        'models',
+                        'alphabet_94.txt',
+                    ]),
             }],
         )
     ])

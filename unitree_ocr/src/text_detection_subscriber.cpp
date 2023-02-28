@@ -59,6 +59,16 @@ public:
       required_parameters_received = false;
     }
 
+    param.description = "The file path to the text recognition vocabulary (REQUIRED).";
+    declare_parameter("recognition.vocabulary_path", "", param);
+    auto recognition_vocabulary_path =
+      get_parameter("recognition.vocabulary_path").get_parameter_value().get<std::string>();
+
+    if (recognition_model_path == "") {
+      RCLCPP_ERROR_STREAM(get_logger(), "No recognition model path provided.");
+      required_parameters_received = false;
+    }
+
     //Abort if any required parameters were not provided
     if (!required_parameters_received) {
       throw std::logic_error(
@@ -70,7 +80,8 @@ public:
       detection_model_path,
       detection_confidence_threshold,
       detection_nms_threshold,
-      recognition_model_path
+      recognition_model_path,
+      recognition_vocabulary_path
     );
 
     RCLCPP_INFO_STREAM(get_logger(), "text_detection_subscriber node started");
