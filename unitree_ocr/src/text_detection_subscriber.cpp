@@ -131,10 +131,24 @@ private:
 
     cv::Mat frame = cv_ptr->image;
 
+    //swap red and blue channels if enabled
     if (swap_rb_) {
       cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
     }
 
+    //perform text detection
+    detector_->detect(frame);
+
+    //draw text on image
+    for (size_t i = 0; i < detector_->results_size(); i++) {
+      auto [quadrangle, text] = detector_->result(i);
+      cv::putText(frame, text, quadrangle[3], cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 255), 2);
+    }
+
+    //Draw contours on image
+    cv::polylines(frame, detector_->get_contours(), true, cv::Scalar(0, 255, 0), 2);
+
+    //Show image
     cv::imshow(WINDOW_NAME, frame);
     cv::waitKey(1);
   }
