@@ -25,14 +25,14 @@ def generate_launch_description():
                 ('/image_raw', '/head/front/cam/left/image_rect')
             ],
         ),
-        Node(
-            package='usb_cam',
-            executable='show_image.py',
-            output='screen',
-            remappings=[
-                ('/image_raw', '/head/front/cam/left/image_rect')
-            ],
-        ),
+        # Node(
+        #     package='usb_cam',
+        #     executable='show_image.py',
+        #     output='screen',
+        #     remappings=[
+        #         ('/image_raw', '/head/front/cam/left/image_rect')
+        #     ],
+        # ),
 
         Node(
             package='unitree_ocr',
@@ -58,5 +58,8 @@ def generate_launch_description():
                         'alphabet_94.txt',
                     ]),
             }],
+            remappings=[
+                ('/image', '/head/front/cam/left/image_rect')
+            ],
         )
     ])

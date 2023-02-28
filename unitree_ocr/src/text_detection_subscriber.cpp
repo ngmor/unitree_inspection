@@ -6,12 +6,15 @@
 
 using unitree_ocr::TextDetector;
 
+const std::string WINDOW_NAME = "Optical Character Recognition";
+
 class TextDetectionSubscriber : public rclcpp::Node
 {
 public:
   TextDetectionSubscriber()
   : Node("text_detection_subscriber")
   {
+    //Parameters
     auto param = rcl_interfaces::msg::ParameterDescriptor{};
 
     //Check if required parameters were provided
@@ -79,12 +82,23 @@ public:
     auto recognition_resize_height =
       get_parameter("recognition.resize_height").get_parameter_value().get<int>();
 
+    param.description = "Swap red and blue channels in input image.";
+    declare_parameter("swap_rb", true, param);
+    swap_rb_ = get_parameter("swap_rb").get_parameter_value().get<bool>();
+
     //Abort if any required parameters were not provided
     if (!required_parameters_received) {
       throw std::logic_error(
         "Required parameters were not received or were invalid. Please provide valid parameters."
       );
     }
+
+    //Subscribers
+    sub_image_ = create_subscription<sensor_msgs::msg::Image>(
+      "image",
+      10,
+      std::bind(&TextDetectionSubscriber::image_callback, this, std::placeholders::_1)
+    );
 
     detector_ = std::make_unique<TextDetector>(
       detection_model_path,
@@ -96,11 +110,34 @@ public:
       recognition_resize_height
     );
 
+    cv::namedWindow(WINDOW_NAME);
+
     RCLCPP_INFO_STREAM(get_logger(), "text_detection_subscriber node started");
   }
+
+  ~TextDetectionSubscriber()
+  {
+    cv::destroyAllWindows();
+  }
+
 private:
-  
+  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_image_;
+
   std::unique_ptr<TextDetector> detector_;
+  bool swap_rb_;
+
+  void image_callback(const sensor_msgs::msg::Image & msg) {
+    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
+
+    cv::Mat frame = cv_ptr->image;
+
+    if (swap_rb_) {
+      cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
+    }
+
+    cv::imshow(WINDOW_NAME, frame);
+    cv::waitKey(1);
+  }
 };
 
 int main(int argc, char** argv)
