@@ -2,14 +2,28 @@
 
 from launch import LaunchDescription
 from launch_ros.actions import Node
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 
 def generate_launch_description():
     return LaunchDescription([
+        DeclareLaunchArgument(
+            name='use_local_camera',
+            default_value='true',
+            choices=['true', 'false'],
+            description='Open local USB camera'
+        ),
+
+        DeclareLaunchArgument(
+            name='swap_rb',
+            default_value='true',
+            choices=['true', 'false'],
+            description='Swap the red and blue color channels in the input image',
+        ),
+
         Node(
             package='usb_cam',
             executable='usb_cam_node_exe',
@@ -24,6 +38,7 @@ def generate_launch_description():
             remappings=[
                 ('/image_raw', '/head/front/cam/left/image_rect')
             ],
+            condition=IfCondition(LaunchConfiguration('use_local_camera')),
         ),
 
         Node(
@@ -49,6 +64,7 @@ def generate_launch_description():
                         'models',
                         'alphabet_94.txt',
                     ]),
+                'swap_rb': LaunchConfiguration('swap_rb'),
             }],
             remappings=[
                 ('/image', '/head/front/cam/left/image_rect')

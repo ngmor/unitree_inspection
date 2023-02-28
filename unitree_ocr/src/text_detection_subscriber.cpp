@@ -148,6 +148,9 @@ private:
     //Draw contours on image
     cv::polylines(frame, detector_->get_contours(), true, cv::Scalar(0, 255, 0), 2);
 
+    // Uncomment to increase size
+    // cv::resize(frame, frame, cv::Size(frame.size().width*2, frame.size().height*2), cv::INTER_LINEAR);
+
     //Show image
     cv::imshow(WINDOW_NAME, frame);
     cv::waitKey(1);
