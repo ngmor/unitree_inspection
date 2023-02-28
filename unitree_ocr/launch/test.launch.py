@@ -32,5 +32,25 @@ def generate_launch_description():
             remappings=[
                 ('/image_raw', '/head/front/cam/left/image_rect')
             ],
+        ),
+
+        Node(
+            package='unitree_ocr',
+            executable='text_detection_subscriber',
+            output='screen',
+            parameters=[{
+                'detection.model_path':
+                    PathJoinSubstitution([
+                        FindPackageShare('unitree_ocr'),
+                        'models',
+                        'frozen_east_text_detection.pb',
+                    ]),
+                'recognition.model_path':
+                    PathJoinSubstitution([
+                        FindPackageShare('unitree_ocr'),
+                        'models',
+                        'crnn_cs.onnx',
+                    ]),
+            }],
         )
     ])

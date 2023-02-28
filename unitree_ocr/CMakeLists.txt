@@ -18,6 +18,7 @@ include_directories(SYSTEM
 
 # OCR library
 add_library(unitree_ocr src/ocr.cpp)
+target_link_libraries(unitree_ocr ${OpenCV_LIBRARIES})
 
 target_include_directories(unitree_ocr
     PUBLIC
