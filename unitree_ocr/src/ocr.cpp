@@ -85,6 +85,19 @@ namespace unitree_ocr
       }
     }
 
+    std::vector<std::vector<cv::Point>> TextDetector::get_contours() {return detection_results_;}
+
+    std::vector<std::string> TextDetector::get_text() {return recognition_results_;}
+
+    size_t TextDetector::results_size() {return detection_results_.size();}
+
+    std::tuple<std::vector<cv::Point>, std::string> TextDetector::result(size_t index) {
+      return {
+        detection_results_.at(index),
+        recognition_results_.at(index)
+      };
+    }
+
 
     void fourPointsTransform(const cv::Mat& frame, const cv::Point2f vertices[], cv::Mat& result) {
       const cv::Size outputSize = cv::Size(100, 32);

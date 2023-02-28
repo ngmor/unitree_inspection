@@ -32,6 +32,14 @@ namespace unitree_ocr
 
     void detect(cv::Mat frame);
 
+    std::vector<std::vector<cv::Point>> get_contours();
+
+    std::vector<std::string> get_text();
+
+    size_t results_size();
+
+    std::tuple<std::vector<cv::Point>, std::string> result(size_t index);
+
 
   };
 
