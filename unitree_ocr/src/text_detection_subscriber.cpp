@@ -2,6 +2,7 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/highgui.hpp>
+#include "image_transport/image_transport.hpp"
 #include "unitree_ocr/ocr.hpp"
 
 using unitree_ocr::TextDetector;
@@ -86,6 +87,10 @@ public:
     declare_parameter("swap_rb", true, param);
     swap_rb_ = get_parameter("swap_rb").get_parameter_value().get<bool>();
 
+    param.description = "Size multiplier for displayed image.";
+    declare_parameter("display_size_multiplier", 1.0, param);
+    display_size_multiplier_ = get_parameter("display_size_multiplier").get_parameter_value().get<double>();
+
     //Abort if any required parameters were not provided
     if (!required_parameters_received) {
       throw std::logic_error(
@@ -94,10 +99,14 @@ public:
     }
 
     //Subscribers
-    sub_image_ = create_subscription<sensor_msgs::msg::Image>(
-      "image",
-      10,
-      std::bind(&TextDetectionSubscriber::image_callback, this, std::placeholders::_1)
+    sub_image_ = std::make_shared<image_transport::CameraSubscriber>(
+        image_transport::create_camera_subscription(
+          this,
+          "image",
+          std::bind(&TextDetectionSubscriber::image_callback, this, std::placeholders::_1, std::placeholders::_2),
+          "compressed",
+          rclcpp::QoS {10}.get_rmw_qos_profile()
+        )
     );
 
     detector_ = std::make_unique<TextDetector>(
@@ -121,15 +130,18 @@ public:
   }
 
 private:
-  rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr sub_image_;
+  std::shared_ptr<image_transport::CameraSubscriber> sub_image_;
 
   std::unique_ptr<TextDetector> detector_;
   bool swap_rb_;
+  double display_size_multiplier_;
+  
 
-  void image_callback(const sensor_msgs::msg::Image & msg) {
-    cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg, msg.encoding);
-
-    cv::Mat frame = cv_ptr->image;
+  void image_callback(
+    const sensor_msgs::msg::Image::ConstSharedPtr& img,
+    const sensor_msgs::msg::CameraInfo::ConstSharedPtr&
+  ) {
+    cv::Mat frame = cv_bridge::toCvCopy(img, img->encoding)->image;
 
     //swap red and blue channels if enabled
     if (swap_rb_) {
@@ -148,8 +160,11 @@ private:
     //Draw contours on image
     cv::polylines(frame, detector_->get_contours(), true, cv::Scalar(0, 255, 0), 2);
 
-    // Uncomment to increase size
-    // cv::resize(frame, frame, cv::Size(frame.size().width*2, frame.size().height*2), cv::INTER_LINEAR);
+    //Resize for output
+    cv::resize(frame, frame, cv::Size(
+      static_cast<size_t>(frame.size().width*display_size_multiplier_),
+      static_cast<size_t>(frame.size().height*display_size_multiplier_)
+    ), cv::INTER_LINEAR);
 
     //Show image
     cv::imshow(WINDOW_NAME, frame);

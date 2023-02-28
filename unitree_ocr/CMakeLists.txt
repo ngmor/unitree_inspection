@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(image_transport REQUIRED)
 
 include_directories(SYSTEM 
   ${OpenCV_INCLUDE_DIRS}
@@ -28,7 +29,7 @@ target_include_directories(unitree_ocr
 # text detection subscriber node
 add_executable(text_detection_subscriber src/text_detection_subscriber.cpp)
 ament_target_dependencies(text_detection_subscriber
-  rclcpp std_msgs sensor_msgs cv_bridge
+  rclcpp std_msgs sensor_msgs cv_bridge image_transport
 )
 target_link_libraries(text_detection_subscriber
   ${OpenCV_LIBRARIES} unitree_ocr

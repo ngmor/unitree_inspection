@@ -23,6 +23,11 @@ def generate_launch_description():
             choices=['true', 'false'],
             description='Swap the red and blue color channels in the input image',
         ),
+        DeclareLaunchArgument(
+            name='display_size_multiplier',
+            default_value='1.0',
+            description='Change the size of the displayed image',
+        ),
 
         Node(
             package='usb_cam',
@@ -36,7 +41,8 @@ def generate_launch_description():
                 ]),
             ],
             remappings=[
-                ('/image_raw', '/head/front/cam/left/image_rect')
+                ('/image_raw/compressed', '/head/front/cam/image_rect/left/compressed'),
+                ('/camera_info', '/head/front/cam/image_rect/camera_info'),
             ],
             condition=IfCondition(LaunchConfiguration('use_local_camera')),
         ),
@@ -65,9 +71,11 @@ def generate_launch_description():
                         'alphabet_94.txt',
                     ]),
                 'swap_rb': LaunchConfiguration('swap_rb'),
+                'display_size_multiplier': LaunchConfiguration('display_size_multiplier'),
             }],
             remappings=[
-                ('/image', '/head/front/cam/left/image_rect')
+                ('/image/compressed', '/head/front/cam/image_rect/left/compressed'),
+                ('/camera_info', '/head/front/cam/image_rect/camera_info'),
             ],
         )
     ])
