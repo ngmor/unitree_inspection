@@ -69,6 +69,16 @@ public:
       required_parameters_received = false;
     }
 
+    param.description = "Preprocess input image by resizing to a specific width. Should be a multiple of 32.";
+    declare_parameter("recognition.resize_width", 320, param);
+    auto recognition_resize_width =
+      get_parameter("recognition.resize_width").get_parameter_value().get<int>();
+
+    param.description = "Preprocess input image by resizing to a specific height. Should be a multiple of 32.";
+    declare_parameter("recognition.resize_height", 320, param);
+    auto recognition_resize_height =
+      get_parameter("recognition.resize_height").get_parameter_value().get<int>();
+
     //Abort if any required parameters were not provided
     if (!required_parameters_received) {
       throw std::logic_error(
@@ -81,7 +91,9 @@ public:
       detection_confidence_threshold,
       detection_nms_threshold,
       recognition_model_path,
-      recognition_vocabulary_path
+      recognition_vocabulary_path,
+      recognition_resize_width,
+      recognition_resize_height
     );
 
     RCLCPP_INFO_STREAM(get_logger(), "text_detection_subscriber node started");
