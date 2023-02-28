@@ -16,16 +16,39 @@ include_directories(SYSTEM
   ${OpenCV_INCLUDE_DIRS}
 )
 
+# OCR library
+add_library(unitree_ocr src/ocr.cpp)
+
+target_include_directories(unitree_ocr
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
+# text detection subscriber node
 add_executable(text_detection_subscriber src/text_detection_subscriber.cpp)
 ament_target_dependencies(text_detection_subscriber
   rclcpp std_msgs sensor_msgs cv_bridge
 )
-target_link_libraries(text_detection_subscriber ${OpenCV_LIBRARIES})
+target_link_libraries(text_detection_subscriber
+  ${OpenCV_LIBRARIES} unitree_ocr
+)
 
 install(TARGETS
   text_detection_subscriber
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# install include directories
+install(DIRECTORY include/ DESTINATION include)
+
+# install targets
+install(TARGETS unitree_ocr EXPORT unitree_ocr-targets)
+
+# export targets
+install(EXPORT unitree_ocr-targets
+        FILE unitree_ocr-config.cmake
+        NAMESPACE unitree_ocr::
+        DESTINATION lib/cmake/${PROJECT_NAME})
 
 install(DIRECTORY
   launch models
