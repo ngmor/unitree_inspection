@@ -8,9 +8,10 @@
   <license>Apache License 2.0</license>
 
   <depend>rclcpp</depend>
+  <depend>std_srvs</depend>
   <depend>unitree_nav_interfaces</depend>
-  
-  <depend>unitree_nav</depend>
+
+  <exec_depend>unitree_nav</exec_depend>
   <exec_depend>unitree_ocr</exec_depend>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
