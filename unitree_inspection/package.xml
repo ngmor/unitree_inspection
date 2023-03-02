@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>unitree_inspection</name>
+  <version>0.0.0</version>
+  <description>Autonomous factory inspection with the Unitree Go1.</description>
+  <maintainer email="ngmorales97@gmail.com">Nick Morales</maintainer>
+  <license>Apache License 2.0</license>
+
+  <depend>rclcpp</depend>
+  <depend>unitree_nav_interfaces</depend>
+  
+  <depend>unitree_nav</depend>
+  <exec_depend>unitree_ocr</exec_depend>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
