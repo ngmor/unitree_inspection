@@ -4,7 +4,7 @@
   <name>unitree_ocr</name>
   <version>0.0.0</version>
   <description>OCR using EAST and the Unitree Go1's cameras.</description>
-  <maintainer email="ngmorales97@gmail.com">ngm</maintainer>
+  <maintainer email="ngmorales97@gmail.com">Nick Morales</maintainer>
   <license>Apache License 2.0</license>
 
   <depend>rclcpp</depend>
