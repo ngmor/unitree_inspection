@@ -10,6 +10,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
+find_package(unitree_ocr_interfaces REQUIRED)
 
 install(DIRECTORY
   launch
@@ -18,7 +19,7 @@ install(DIRECTORY
 
 add_executable(sandbox src/sandbox.cpp)
 ament_target_dependencies(sandbox
-  rclcpp std_srvs unitree_nav_interfaces
+  rclcpp std_srvs unitree_nav_interfaces unitree_ocr_interfaces
 )
 
 install(TARGETS

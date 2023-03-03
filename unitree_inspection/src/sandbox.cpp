@@ -1,30 +1,50 @@
-#include <unordered_map>
 #include <string>
 #include <future>
+#include <unordered_map>
+#include <unordered_set>
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/empty.hpp"
 #include "unitree_nav_interfaces/srv/set_body_rpy.hpp"
+#include "unitree_ocr_interfaces/msg/detection.hpp"
+#include "unitree_ocr_interfaces/msg/detections.hpp"
 
 using namespace std::chrono_literals;
 
 //TODO convert to SMACC if I get the time
 enum class State
 {
-    IDLE
-  ,SWEEPING_PITCH
+   IDLE
+  ,SET_SWEEP_TARGET
   ,SETTING_RPY_START //TODO turn start wait pattern into a class
   ,SETTING_RPY_WAIT
+  ,EVALUATE_DETECTION
 };
 
 //TODO find a better way of doing this
-std::unordered_map<State, std::string> STATE_NAMES;
+std::unordered_map<State, std::string> STATE_NAMES = {
+   {State::IDLE, "IDLE"}
+  ,{State::SET_SWEEP_TARGET, "SET_SWEEP_TARGET"}
+  ,{State::SETTING_RPY_START, "SETTING_RPY_START"}
+  ,{State::SETTING_RPY_WAIT, "SETTING_RPY_WAIT"}
+  ,{State::EVALUATE_DETECTION, "EVALUATE_DETECTION"}
+};
 
-void init_enums() {
-  STATE_NAMES[State::IDLE] = "IDLE";
-  STATE_NAMES[State::SWEEPING_PITCH] = "SWEEPING_PITCH";
-  STATE_NAMES[State::SETTING_RPY_START] = "SETTING_RPY_START";
-  STATE_NAMES[State::SETTING_RPY_WAIT] = "SETTING_RPY_WAIT";
-}
+//Detections that are valid on a sign post.
+std::unordered_set<std::string> VALID_DETECTIONS = {
+   "100"
+  ,"200"
+  ,"300"
+  ,"400"
+  ,"500"
+  ,"600"
+  ,"700"
+  ,"800"
+  ,"900"
+};
+
+//TODO make parameters for all these things
+constexpr uint16_t CONSECUTIVE_FRAMES_THRESHOLD = 5; //number of frames before any text is considered detected
+constexpr uint16_t DETECTION_COUNT_THRESHOLD = 10; //number of frames before specific text is considered detected
 
 class Sandbox : public rclcpp::Node
 {
@@ -37,6 +57,13 @@ public:
     timer_ = create_wall_timer(
       static_cast<std::chrono::milliseconds>(static_cast<int>(interval_ * 1000.0)), 
       std::bind(&Sandbox::timer_callback, this)
+    );
+
+    //Subscribers
+    sub_detected_text_ = create_subscription<unitree_ocr_interfaces::msg::Detections>(
+      "detected_text",
+      10,
+      std::bind(&Sandbox::detected_text_callback, this, std::placeholders::_1)
     );
 
     //Services
@@ -55,6 +82,11 @@ public:
       std::bind(&Sandbox::stop_sweep_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
+    srv_inspect_for_text_ = create_service<std_srvs::srv::Empty>(
+      "inspect_for_text",
+      std::bind(&Sandbox::inspect_for_text_callback, this,
+                std::placeholders::_1, std::placeholders::_2)
+    );
 
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
@@ -64,9 +96,11 @@ public:
 
 private:
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Subscription<unitree_ocr_interfaces::msg::Detections>::SharedPtr sub_detected_text_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_reset_rpy_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_sweep_pitch_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_stop_sweep_;
+  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_inspect_for_text_;
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
 
   State state_ = State::IDLE;
@@ -86,6 +120,8 @@ private:
   double sweep_angle_ = 0.0;
   bool sweeping_upwards_ = true;
   rclcpp::Time last_sweep_time_;
+  bool inspecting_for_text_ = false;
+  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
 
   void timer_callback() {
     state_ = state_next_;
@@ -103,6 +139,7 @@ private:
       case State::IDLE:
       {
         sweeping_ = false;
+        inspecting_for_text_ = false;
         break;
       }
       case State::SETTING_RPY_START:
@@ -121,14 +158,14 @@ private:
         if (rpy_future_.wait_for(0s) == std::future_status::ready) {
 
           if (sweeping_) {
-            state_next_ = State::SWEEPING_PITCH;
+            state_next_ = State::SET_SWEEP_TARGET;
           } else {
             state_next_ = State::IDLE;
           }
         }
         break;
       }
-      case State::SWEEPING_PITCH:
+      case State::SET_SWEEP_TARGET:
       {
         //Calculate how much ton increment the sweep angle by
         auto time_delta = static_cast<double>(get_clock()->now().nanoseconds() -
@@ -161,9 +198,57 @@ private:
 
         break;
       }
+
+      case State::EVALUATE_DETECTION:
+      {
+
+        if (detected_text_->count < CONSECUTIVE_FRAMES_THRESHOLD) { //TODO add timeout, handling retriggers gets complicated
+          //if we lose the detections, return to sweep
+          start_sweep_pitch();
+        }
+        
+        //Iterate through detected text
+        for (const auto & detection : detected_text_->data) {
+          //Skip anything that doesn't have enough detections
+          if(detection.count < DETECTION_COUNT_THRESHOLD) {
+            continue;
+          }
+
+          //If text is in valid detections, mark that we've found it and reset body RPY before going back to idle
+          if(VALID_DETECTIONS.find(detection.text) != VALID_DETECTIONS.end()) {
+            RCLCPP_INFO_STREAM(get_logger(), "Text found: " << detection.text);
+            *rpy_request_ = unitree_nav_interfaces::srv::SetBodyRPY::Request {};
+            sweeping_ = false;
+            inspecting_for_text_ = false;
+            state_next_ = State::SETTING_RPY_START;
+          }
+
+        }
+
+
+        
+      }
       default:
         break;
     }
+  }
+
+  void detected_text_callback(const unitree_ocr_interfaces::msg::Detections::SharedPtr msg) {
+    //Don't need to process this data if not actively looking for it
+    if (!inspecting_for_text_) {return;}
+
+    if (state_ != State::EVALUATE_DETECTION && msg->count > CONSECUTIVE_FRAMES_THRESHOLD) {
+      state_next_ = State::EVALUATE_DETECTION;
+    }
+
+    detected_text_ = msg;
+
+  }
+
+  void start_sweep_pitch() {
+    sweeping_ = true;
+    last_sweep_time_ = get_clock()->now();
+    state_next_ = State::SET_SWEEP_TARGET;
   }
 
   //reset dog roll pitch and pitch
@@ -190,11 +275,8 @@ private:
     std::shared_ptr<std_srvs::srv::Empty::Response>
   ) {
 
-    sweeping_ = true;
-
-    last_sweep_time_ = get_clock()->now();
-
-    state_next_ = State::SWEEPING_PITCH;
+    //TODO - validate state?
+    start_sweep_pitch();
 
   }
 
@@ -206,13 +288,24 @@ private:
     sweeping_ = false;
     state_next_ = State::IDLE;
   }
+
+  void inspect_for_text_callback(
+    const std::shared_ptr<std_srvs::srv::Empty::Request>,
+    std::shared_ptr<std_srvs::srv::Empty::Response>
+  ) {
+
+    //TODO - validate state?
+    start_sweep_pitch();
+
+    inspecting_for_text_ = true;
+
+  }
 };
 
 
 
 int main(int argc, char** argv)
 {
-  init_enums();
   rclcpp::init(argc, argv);
   rclcpp::spin(std::make_shared<Sandbox>());
   rclcpp::shutdown();
