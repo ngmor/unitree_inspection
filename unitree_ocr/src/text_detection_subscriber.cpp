@@ -1,11 +1,16 @@
+#include <string>
+#include <unordered_map>
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include <opencv2/highgui.hpp>
 #include "image_transport/image_transport.hpp"
 #include "unitree_ocr/ocr.hpp"
+#include "unitree_ocr_interfaces/msg/detection.hpp"
+#include "unitree_ocr_interfaces/msg/detections.hpp"
 
 using unitree_ocr::TextDetector;
+using consecutive_detection_map_t = std::unordered_map<std::string, uint16_t>;
 
 const std::string WINDOW_NAME = "Optical Character Recognition";
 
@@ -98,6 +103,10 @@ public:
       );
     }
 
+    //Publishers
+    pub_detected_text_ = create_publisher<unitree_ocr_interfaces::msg::Detections>("detected_text", 10);
+
+
     //Subscribers
     sub_image_ = std::make_shared<image_transport::CameraSubscriber>(
         image_transport::create_camera_subscription(
@@ -130,11 +139,14 @@ public:
   }
 
 private:
+  rclcpp::Publisher<unitree_ocr_interfaces::msg::Detections>::SharedPtr pub_detected_text_;
   std::shared_ptr<image_transport::CameraSubscriber> sub_image_;
 
   std::unique_ptr<TextDetector> detector_;
   bool swap_rb_;
   double display_size_multiplier_;
+  consecutive_detection_map_t consecutive_detections_ {};
+  uint16_t consecutive_frames_with_detections_ = 0;
   
 
   void image_callback(
@@ -151,10 +163,37 @@ private:
     //perform text detection
     detector_->detect(frame);
 
+    unitree_ocr_interfaces::msg::Detections msg {};
+    consecutive_detection_map_t detections {};
+
     //draw text on image
     for (size_t i = 0; i < detector_->results_size(); i++) {
       auto [quadrangle, text] = detector_->result(i);
       cv::putText(frame, text, quadrangle[3], cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 255), 2);
+
+      //See if we saw this text in the last frame
+      auto last_detection = consecutive_detections_.find(text);
+
+      uint16_t count;
+
+      if (last_detection != consecutive_detections_.end()) {
+        //We saw this text last frame, increment its detection counter and store
+        //in new detections list
+        count = last_detection->second + 1;
+      } else {
+        //This is the first time detecting the text
+        //Store in new detection list with a count of 1
+        count = 1;
+      }
+
+      detections[text] = count;
+
+      unitree_ocr_interfaces::msg::Detection detection;
+      detection.text = text;
+      detection.count = count;
+
+      // add text to msg to publish
+      msg.data.push_back(detection);
     }
 
     //Draw contours on image
@@ -165,6 +204,21 @@ private:
       static_cast<size_t>(frame.size().width*display_size_multiplier_),
       static_cast<size_t>(frame.size().height*display_size_multiplier_)
     ), cv::INTER_LINEAR);
+
+    //Publish text detections if any exist
+    if (msg.data.size() > 0) {
+      //increment consecutive frame count and publish
+      consecutive_frames_with_detections_ += 1;
+      msg.count = consecutive_frames_with_detections_;
+    } else {
+      //reset consecutive frame count
+      consecutive_frames_with_detections_ = 0;
+    }
+
+    pub_detected_text_->publish(msg);
+
+    //Store detections
+    consecutive_detections_ = detections;
 
     //Show image
     cv::imshow(WINDOW_NAME, frame);
