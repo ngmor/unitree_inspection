@@ -8,7 +8,12 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
 find_package(unitree_ocr_interfaces REQUIRED)
 
@@ -19,7 +24,8 @@ install(DIRECTORY
 
 add_executable(sandbox src/sandbox.cpp)
 ament_target_dependencies(sandbox
-  rclcpp std_srvs unitree_nav_interfaces unitree_ocr_interfaces
+  rclcpp rclcpp_action std_srvs geometry_msgs tf2 tf2_geometry_msgs nav2_msgs
+  unitree_nav_interfaces unitree_ocr_interfaces
 )
 
 install(TARGETS

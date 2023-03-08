@@ -9,6 +9,10 @@
 
   <depend>rclcpp</depend>
   <depend>std_srvs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>nav2_msgs</depend>
   <depend>unitree_nav_interfaces</depend>
   <depend>unitree_ocr_interfaces</depend>
 
