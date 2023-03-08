@@ -1,6 +1,7 @@
 #include <string>
 #include <future>
 #include <unordered_map>
+#include <unordered_set>
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/empty.hpp"
 #include "unitree_nav_interfaces/srv/set_body_rpy.hpp"
@@ -9,51 +10,36 @@
 
 using namespace std::chrono_literals;
 
-//https://stackoverflow.com/questions/11714325/how-to-get-enum-item-name-from-its-value
-#define STATES \
-X(IDLE, "IDLE") \
-X(SET_SWEEP_TARGET, "SET_SWEEP_TARGET") \
-X(SETTING_RPY_START, "SETTING_RPY_START") \
-X(SETTING_RPY_WAIT, "SETTING_RPY_WAIT") \
-X(EVALUATE_DETECTION, "EVALUATE_DETECTION") \
-
-#define X(state, name) state,
-enum class State : size_t {STATES};
-#undef X
-
-#define X(state, name) name,
-std::vector<std::string> STATE_NAMES = {STATES};
-#undef X
-
-//https://stackoverflow.com/questions/11421432/how-can-i-output-the-value-of-an-enum-class-in-c11
-template <typename Enumeration>
-auto to_value(Enumeration const value)
-  -> typename std::underlying_type<Enumeration>::type
+//TODO convert to SMACC if I get the time
+enum class State
 {
-  return static_cast<typename std::underlying_type<Enumeration>::type>(value);
-}
+   IDLE
+  ,SET_SWEEP_TARGET
+  ,SETTING_RPY_START //TODO turn start wait pattern into a class
+  ,SETTING_RPY_WAIT
+  ,EVALUATE_DETECTION
+};
 
-auto get_state_name(State state) {
-  return STATE_NAMES[to_value(state)];
-}
-
-struct Pose2D {
-  double x = 0.0;
-  double y = 0.0;
-  double theta = 0.0;
+//TODO find a better way of doing this
+std::unordered_map<State, std::string> STATE_NAMES = {
+   {State::IDLE, "IDLE"}
+  ,{State::SET_SWEEP_TARGET, "SET_SWEEP_TARGET"}
+  ,{State::SETTING_RPY_START, "SETTING_RPY_START"}
+  ,{State::SETTING_RPY_WAIT, "SETTING_RPY_WAIT"}
+  ,{State::EVALUATE_DETECTION, "EVALUATE_DETECTION"}
 };
 
 //Detections that are valid on a sign post.
-std::unordered_map<std::string, Pose2D> VALID_DETECTIONS = {
-   {"100", {}} //TODO
-  ,{"200", {0.5, -1.5, -1.57}}
-  ,{"300", {}} //TODO
-  ,{"400", {-0.75, 0.75, 2.37}}
-  ,{"500", {}} //TODO
-  ,{"600", {}} //TODO
-  ,{"700", {}} //TODO
-  ,{"800", {}} //TODO
-  ,{"900", {}} //TODO
+std::unordered_set<std::string> VALID_DETECTIONS = {
+   "100"
+  ,"200"
+  ,"300"
+  ,"400"
+  ,"500"
+  ,"600"
+  ,"700"
+  ,"800"
+  ,"900"
 };
 
 //TODO make parameters for all these things
@@ -101,11 +87,6 @@ public:
       std::bind(&Sandbox::inspect_for_text_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
-    srv_navigate_to_points_ = create_service<std_srvs::srv::Empty>(
-      "navigate_to_points",
-      std::bind(&Sandbox::navigate_to_points_callback, this,
-                std::placeholders::_1, std::placeholders::_2)
-    );
 
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
@@ -120,7 +101,6 @@ private:
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_sweep_pitch_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_stop_sweep_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_inspect_for_text_;
-  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_navigate_to_points_;
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
 
   State state_ = State::IDLE;
@@ -142,8 +122,6 @@ private:
   rclcpp::Time last_sweep_time_;
   bool inspecting_for_text_ = false;
   unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
-  Pose2D goal_pose_;
-  bool navigating_to_points = false;
 
   void timer_callback() {
     state_ = state_next_;
@@ -151,7 +129,7 @@ private:
     auto new_state = state_ != state_last_;
 
     if (new_state) {
-      RCLCPP_INFO_STREAM(get_logger(), "Sandbox state changed to " << get_state_name(state_));
+      RCLCPP_INFO_STREAM(get_logger(), "Sandbox state changed to " << STATE_NAMES[state_]);
 
       state_last_ = state_;
     }
@@ -236,16 +214,9 @@ private:
             continue;
           }
 
-          auto detection_itr = VALID_DETECTIONS.find(detection.text);
-
           //If text is in valid detections, mark that we've found it and reset body RPY before going back to idle
-          if(detection_itr != VALID_DETECTIONS.end()) {
-            goal_pose_ = detection_itr->second;
-            RCLCPP_INFO_STREAM(
-              get_logger(),
-              "Text found: " << detection.text << "\nNext destination: (" 
-              << goal_pose_.x << ", " << goal_pose_.y << ", " << goal_pose_.theta << ")"
-            );
+          if(VALID_DETECTIONS.find(detection.text) != VALID_DETECTIONS.end()) {
+            RCLCPP_INFO_STREAM(get_logger(), "Text found: " << detection.text);
             *rpy_request_ = unitree_nav_interfaces::srv::SetBodyRPY::Request {};
             sweeping_ = false;
             inspecting_for_text_ = false;
@@ -327,16 +298,6 @@ private:
     start_sweep_pitch();
 
     inspecting_for_text_ = true;
-
-  }
-
-  void navigate_to_points_callback(
-    const std::shared_ptr<std_srvs::srv::Empty::Request>,
-    std::shared_ptr<std_srvs::srv::Empty::Response>
-  ) {
-
-
-    navigating_to_points = true;
 
   }
 };
