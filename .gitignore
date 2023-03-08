@@ -1,5 +1,7 @@
-# Directories
-models/
+# Models
+*.onnx
+*.pb
+*alphabet_*.txt
 
 # Prerequisites
 *.d
