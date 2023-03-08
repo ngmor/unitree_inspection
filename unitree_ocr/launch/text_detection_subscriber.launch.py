@@ -1,5 +1,3 @@
-# For testing on a device with ROS's usb_cam package
-
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
@@ -12,14 +10,14 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
             name='use_local_camera',
-            default_value='true',
+            default_value='false',
             choices=['true', 'false'],
             description='Open local USB camera'
         ),
 
         DeclareLaunchArgument(
             name='swap_rb',
-            default_value='true',
+            default_value='false',
             choices=['true', 'false'],
             description='Swap the red and blue color channels in the input image',
         ),

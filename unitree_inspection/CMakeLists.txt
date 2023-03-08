@@ -17,11 +17,6 @@ find_package(nav2_msgs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
 find_package(unitree_ocr_interfaces REQUIRED)
 
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME}
-)
-
 add_executable(sandbox src/sandbox.cpp)
 ament_target_dependencies(sandbox
   rclcpp rclcpp_action std_srvs geometry_msgs tf2 tf2_geometry_msgs nav2_msgs
@@ -31,6 +26,11 @@ ament_target_dependencies(sandbox
 install(TARGETS
   sandbox
   DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch config
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)

@@ -56,19 +56,6 @@ struct Pose2D {
 std::tuple<double, double, double> quaternion_to_rpy(const geometry_msgs::msg::Quaternion & q);
 geometry_msgs::msg::Quaternion rpy_to_quaternion(double roll, double pitch, double yaw);
 
-//Detections that are valid on a sign post.
-std::unordered_map<std::string, Pose2D> VALID_DETECTIONS = {
-   {"100", {}} //TODO
-  ,{"200", {0.5, -1.5, -1.57}}
-  ,{"300", {}} //TODO
-  ,{"400", {-0.64, 0.7, 2.0933688}}
-  ,{"500", {}} //TODO
-  ,{"600", {}} //TODO
-  ,{"700", {}} //TODO
-  ,{"800", {}} //TODO
-  ,{"900", {}} //TODO
-};
-
 //TODO make parameters for all these things
 constexpr uint16_t CONSECUTIVE_FRAMES_THRESHOLD = 5; //number of frames before any text is considered detected
 constexpr uint16_t DETECTION_COUNT_THRESHOLD = 10; //number of frames before specific text is considered detected
@@ -82,9 +69,57 @@ public:
 
     //Parameters
     auto param = rcl_interfaces::msg::ParameterDescriptor{};
+
+    //Check if required parameters were provided
+    bool required_parameters_received = true;
+
     param.description = "The frame in which poses are sent.";
     declare_parameter("pose_frame", "map", param);
     goal_msg_.pose.header.frame_id = get_parameter("pose_frame").get_parameter_value().get<std::string>();
+
+    param.description =
+      "List of text labels for each inspection point. Arbitrary length, but must match length of x, y, theta.";
+    declare_parameter("inspection_points.text", std::vector<std::string> {}, param);
+    auto inspection_points_text = get_parameter("inspection_points.text").as_string_array();
+
+    param.description =
+      "List of x positions of inspection points (m). Arbitrary length, but must match length of text, y, theta.";
+    declare_parameter("inspection_points.x", std::vector<double> {}, param);
+    auto inspection_points_x = get_parameter("inspection_points.x").as_double_array();
+
+    param.description =
+      "List of y positions of inspection points (m). Arbitrary length, but must match length of text, x, theta.";
+    declare_parameter("inspection_points.y", std::vector<double> {}, param);
+    auto inspection_points_y = get_parameter("inspection_points.y").as_double_array();
+
+    param.description =
+      "List of theta positions of inspection points (rad). Arbitrary length, but must match length of text, x, y.";
+    declare_parameter("inspection_points.theta", std::vector<double> {}, param);
+    auto inspection_points_theta = get_parameter("inspection_points.theta").as_double_array();
+
+    //If vectors differ in size, exit node
+    if (
+       (inspection_points_text.size() != inspection_points_x.size())
+    || (inspection_points_text.size() != inspection_points_y.size())
+    || (inspection_points_text.size() != inspection_points_theta.size())
+    ) {
+      RCLCPP_ERROR_STREAM(
+        get_logger(),
+        "Size mismatch between input inspection point lists ("
+        << "text: " << inspection_points_text.size() << " elements, "
+        << "x: " << inspection_points_x.size() << " elements, "
+        << "y: " << inspection_points_y.size() << " elements, "
+        << "theta: " << inspection_points_theta.size() << " elements)"
+      );
+      required_parameters_received = false;
+    }
+
+    //Abort if any required parameters were not provided
+    if (!required_parameters_received) {
+      throw std::logic_error(
+        "Required parameters were not received or were invalid. Please provide valid parameters."
+      );
+    }
 
     //Timers
     timer_ = create_wall_timer(
@@ -145,6 +180,15 @@ public:
       "navigate_to_pose"
     );
 
+    //Construct inspection points map
+    for (size_t i = 0; i < inspection_points_text.size(); i++) {
+      inspection_points_[inspection_points_text.at(i)] = Pose2D {
+        inspection_points_x.at(i),
+        inspection_points_y.at(i),
+        inspection_points_theta.at(i),
+      };
+    }
+
     RCLCPP_INFO_STREAM(get_logger(), "sandbox node started");
   }
 
@@ -161,6 +205,7 @@ private:
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr act_nav_to_pose_;
 
+  std::unordered_map<std::string, Pose2D> inspection_points_ {};
   State state_ = State::IDLE;
   State state_last_ = state_;
   State state_next_ = state_;
@@ -338,10 +383,10 @@ private:
             continue;
           }
 
-          auto detection_itr = VALID_DETECTIONS.find(detection.text);
+          auto detection_itr = inspection_points_.find(detection.text);
 
           //If text is in valid detections, mark that we've found it and reset body RPY before going back to idle
-          if(detection_itr != VALID_DETECTIONS.end()) {
+          if(detection_itr != inspection_points_.end()) {
             goal_pose_ = detection_itr->second;
             RCLCPP_INFO_STREAM(
               get_logger(),
@@ -444,7 +489,7 @@ private:
 
     navigating_to_points = true;
 
-    goal_pose_ = VALID_DETECTIONS["200"]; //TODO make this not hardcoded
+    goal_pose_ = inspection_points_["200"]; //TODO make this not hardcoded
 
     state_next_ = State::SEND_GOAL;
 

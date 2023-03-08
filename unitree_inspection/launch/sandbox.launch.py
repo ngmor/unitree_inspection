@@ -9,15 +9,15 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 def generate_launch_description():
     return LaunchDescription([
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                PathJoinSubstitution([
-                    FindPackageShare('unitree_nav'),
-                    'launch',
-                    'control.launch.py'
-                ])
-            ),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource(
+        #         PathJoinSubstitution([
+        #             FindPackageShare('unitree_nav'),
+        #             'launch',
+        #             'control.launch.py'
+        #         ])
+        #     ),
+        # ),
 
         Node(
             package='teleop_twist_keyboard',
@@ -30,5 +30,22 @@ def generate_launch_description():
             package='unitree_inspection',
             executable='sandbox',
             output='screen',
+            parameters=[
+                PathJoinSubstitution([
+                    FindPackageShare('unitree_inspection'),
+                    'config',
+                    'environment_params.yaml'
+                ]),
+            ],
+        ),
+
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                PathJoinSubstitution([
+                    FindPackageShare('unitree_ocr'),
+                    'launch',
+                    'text_detection_subscriber.launch.py'
+                ])
+            ),
         ),
     ])
