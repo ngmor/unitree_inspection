@@ -13,6 +13,7 @@
 #include "unitree_nav_interfaces/srv/nav_to_pose.hpp"
 #include "unitree_ocr_interfaces/msg/detection.hpp"
 #include "unitree_ocr_interfaces/msg/detections.hpp"
+#include "unitree_inspection_interfaces/srv/go_to_inspection_point.hpp"
 
 using namespace std::chrono_literals;
 
@@ -170,6 +171,11 @@ public:
       std::bind(&Sandbox::cancel_nav_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
+    srv_go_to_inspection_point_ = create_service<unitree_inspection_interfaces::srv::GoToInspectionPoint>(
+      "go_to_inspection_point",
+      std::bind(&Sandbox::go_to_inspection_point_callback, this,
+                std::placeholders::_1, std::placeholders::_2)
+    );
 
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
@@ -202,6 +208,7 @@ private:
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_navigate_to_points_;
   rclcpp::Service<unitree_nav_interfaces::srv::NavToPose>::SharedPtr srv_nav_to_pose_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_cancel_nav_;
+  rclcpp::Service<unitree_inspection_interfaces::srv::GoToInspectionPoint>::SharedPtr srv_go_to_inspection_point_;
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SharedPtr act_nav_to_pose_;
 
@@ -493,6 +500,24 @@ private:
 
     state_next_ = State::SEND_GOAL;
 
+  }
+
+  void go_to_inspection_point_callback(
+    const std::shared_ptr<unitree_inspection_interfaces::srv::GoToInspectionPoint::Request> request,
+    std::shared_ptr<unitree_inspection_interfaces::srv::GoToInspectionPoint::Response>
+  )
+  {
+    //If requested inspection point is not in valid inspection points, do nothing
+    if(inspection_points_.find(request->inspection_point) == inspection_points_.end()) {
+      return;
+    }
+
+    //Otherwise, begin navigation to points
+    navigating_to_points = true;
+
+    goal_pose_ = inspection_points_[request->inspection_point];
+
+    state_next_ = State::SEND_GOAL;
   }
 
   void srv_nav_to_pose_callback(

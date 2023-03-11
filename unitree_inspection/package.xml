@@ -15,6 +15,7 @@
   <depend>nav2_msgs</depend>
   <depend>unitree_nav_interfaces</depend>
   <depend>unitree_ocr_interfaces</depend>
+  <depend>unitree_inspection_interfaces</depend>
 
   <exec_depend>unitree_nav</exec_depend>
   <exec_depend>unitree_ocr</exec_depend>

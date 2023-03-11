@@ -16,11 +16,12 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
 find_package(unitree_ocr_interfaces REQUIRED)
+find_package(unitree_inspection_interfaces REQUIRED)
 
 add_executable(sandbox src/sandbox.cpp)
 ament_target_dependencies(sandbox
   rclcpp rclcpp_action std_srvs geometry_msgs tf2 tf2_geometry_msgs nav2_msgs
-  unitree_nav_interfaces unitree_ocr_interfaces
+  unitree_nav_interfaces unitree_ocr_interfaces unitree_inspection_interfaces
 )
 
 install(TARGETS
