@@ -233,7 +233,7 @@ private:
   bool inspecting_for_text_ = false;
   unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
   Pose2D goal_pose_;
-  bool navigating_to_points = false;
+  bool navigating_to_points_ = false;
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::Goal goal_msg_ {};
   bool goal_response_received_ = false;
   rclcpp_action::ClientGoalHandle<nav2_msgs::action::NavigateToPose>::SharedPtr goal_handle_ {};
@@ -258,7 +258,7 @@ private:
       {
         sweeping_ = false;
         inspecting_for_text_ = false;
-        navigating_to_points = false;
+        navigating_to_points_ = false;
         break;
       }
       case State::SEND_GOAL:
@@ -273,6 +273,11 @@ private:
           goal_msg_.pose.pose.position.x = goal_pose_.x;
           goal_msg_.pose.pose.position.y = goal_pose_.y;
           goal_msg_.pose.pose.orientation = rpy_to_quaternion(0.0, 0.0, goal_pose_.theta);
+
+          //End navigation to points if we're returning to the origin
+          if ((goal_pose_.x == 0.0) && (goal_pose_.y == 0.0) && (goal_pose_.theta == 0.0)) {
+            navigating_to_points_ = false;
+          }
 
           auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
           send_goal_options.goal_response_callback = 
@@ -309,7 +314,7 @@ private:
       case State::WAIT_FOR_MOVEMENT_COMPLETE:
       {
         if (result_) {
-          if (navigating_to_points) {
+          if (navigating_to_points_) {
             start_inspecting_for_text();
           } else {
             state_next_ = State::IDLE;
@@ -367,7 +372,7 @@ private:
 
           if (sweeping_) {
             state_next_ = State::SET_SWEEP_TARGET;
-          } else if (navigating_to_points) {
+          } else if (navigating_to_points_) {
             state_next_ = State::SEND_GOAL;
           } else {
             state_next_ = State::IDLE;
@@ -494,7 +499,7 @@ private:
   ) {
 
 
-    navigating_to_points = true;
+    navigating_to_points_ = true;
 
     goal_pose_ = inspection_points_["200"]; //TODO make this not hardcoded
 
@@ -513,7 +518,7 @@ private:
     }
 
     //Otherwise, begin navigation to points
-    navigating_to_points = true;
+    navigating_to_points_ = true;
 
     goal_pose_ = inspection_points_[request->inspection_point];
 
