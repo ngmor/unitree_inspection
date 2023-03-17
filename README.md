@@ -30,7 +30,7 @@ colcon build
 This package handles the high level control of the Go1 for this project. This high level logic is mainly contained in the `inspection` node.
 
 ### Launch Files
-Use `ros2 launch unitree_inspection ${launch_file_name}` --show-args to view arguments for each launch file.
+Use `ros2 launch unitree_inspection ${launch_file_name} --show-args` to view arguments for each launch file.
 
 - `autonomous_inspection.launch.py` - launches all nodes required for this project, including navigation nodes, OCR nodes, and the high level control node.
 
@@ -53,18 +53,30 @@ This node handles high level logic for control of the Go1 for this project. It i
 This node only handles the sweeping for text functionality. Its functionality has been incorporated into the `inspection` node so it is not documented further here.
 
 ## unitree_ocr / unitree_ocr_interfaces
-TODO
+This package handles Optical Character Recognition (OCR) with the Unitree Go1's cameras.
+
+This OCR is performed using EAST text detection and CRNN text recognition machine learning models. These models are not included in this repository, and must be downloaded and placed in the `models` folder of this package separately. For more information, see [here](unitree_ocr/models/README.md).
+
 ### Launch Files
-TODO
+Use `ros2 launch unitree_ocr ${launch_file_name} --show-args` to view arguments for each launch file.
+
+- `text_detection_subscriber.launch.py` - launches the `text_detection_subscriber` node with arguments and remappings necessary to detect text from images published by the Go1's head front camera.
+
 ### Nodes
+#### text_detection_subscriber
+This node subscribes to a camera topic, runs the OCR models on it, and then publishes the detected text. In the `unitree_ocr_interaces/Detections` message that it publishes, counts are provided for both the number of consecutive frames any text is detected and the number of consecutive frames any particular text is detected. This can be used to help filter out transient detections that sometimes occur.
+
+### OCR Library
+The OCR library contains a class called `TextDetector` which wraps up the EAST/CRNN detection functionality. It is based on [OpenCV's code](https://github.com/opencv/opencv/blob/master/samples/dnn/text_detection.cpp).
+
+#### Constructor Inputs
+- `detection_model_path` (std::string) - Path to a binary .pb file containing trained detector network.
+- `confidence_threshold` (float) - Confidence threshold for considering text detected in an image region.
+- `nms_threshold` (float) - Non-maximum suppression threshold for detection.
+- `recognition_model_path` (std::string) - Path to a binary .onnx file containing trained CRNN text recognition model.
+- `vocabulary_path` (std::string) - Path to vocabulary benchmarks for evaluation.
+- `resize_width` (int) - Preprocess input image by resizing to a specific width. It should be a multiple of 32.
+- `resize_height` (int) - Preprocess input image by resizing to a specific height. It should be a multiple of 32.
+
+#### Public Methods
 TODO
-
-
-## East Detection Model
-https://github.com/oyyd/frozen_east_text_detection.pb
-
-## Text Recognition Models
-https://github.com/opencv/opencv/blob/master/doc/tutorials/dnn/dnn_text_spotting/dnn_text_spotting.markdown
-
-## OpenCV OCR Example
-https://github.com/opencv/opencv/blob/master/samples/dnn/text_detection.cpp
