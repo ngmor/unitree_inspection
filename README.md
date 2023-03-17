@@ -7,7 +7,10 @@ See the portfolio post for this project [here](https://ngmor.github.io/projects/
 
 ## Demo Video
 Here's a video of the demo in action:
-TODO
+
+[Inspection Demo](https://user-images.githubusercontent.com/113186159/225857165-a1586f8f-e21b-4c1d-9634-d020e9593030.mp4)
+
+For a higher quality, [watch this video on YouTube](https://www.youtube.com/watch?v=onxPLXfmMvo).
 
 
 ## Dependencies
