@@ -10,6 +10,7 @@
 
 namespace unitree_ocr
 {
+  /// @brief a class for detecting and recognizing text in an input image frame
   class TextDetector {
   private:
     cv::dnn::TextDetectionModel_EAST detector_;

@@ -69,14 +69,4 @@ This node subscribes to a camera topic, runs the OCR models on it, and then publ
 ### OCR Library
 The OCR library contains a class called `TextDetector` which wraps up the EAST/CRNN detection functionality. It is based on [OpenCV's code](https://github.com/opencv/opencv/blob/master/samples/dnn/text_detection.cpp).
 
-#### Constructor Inputs
-- `detection_model_path` (std::string) - Path to a binary .pb file containing trained detector network.
-- `confidence_threshold` (float) - Confidence threshold for considering text detected in an image region.
-- `nms_threshold` (float) - Non-maximum suppression threshold for detection.
-- `recognition_model_path` (std::string) - Path to a binary .onnx file containing trained CRNN text recognition model.
-- `vocabulary_path` (std::string) - Path to vocabulary benchmarks for evaluation.
-- `resize_width` (int) - Preprocess input image by resizing to a specific width. It should be a multiple of 32.
-- `resize_height` (int) - Preprocess input image by resizing to a specific height. It should be a multiple of 32.
-
-#### Public Methods
-TODO
+After building this repository with `colcon build`, documentation for this OCR library can be found by opening `ws/build/unitree_ocr/html/index.html` in a browser.

@@ -58,6 +58,9 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+find_package(Doxygen)
+doxygen_add_docs(doxygen include/unitree_ocr/ocr.hpp src/ocr.cpp ALL)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
