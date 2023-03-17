@@ -15,13 +15,29 @@ mkdir -p ws/src
 cd ws/src
 git clone git@github.com:ngmor/unitree_inspection.git
 cd ..
-vcs import src < src/unitree_inspection/inspection.repos
+vcs import < src/unitree_inspection/inspection.repos
 cd src/rslidar_sdk_ros2
 git submodule init
 git submodule update
 cd ../..
 colcon build
 ```
+
+## Packages
+## unitree_inspection / unitree_inspection_interfaces
+TODO
+### Launch Files
+TODO
+### Nodes
+TODO
+
+## unitree_ocr / unitree_ocr_interfaces
+TODO
+### Launch Files
+TODO
+### Nodes
+TODO
+
 
 ## East Detection Model
 https://github.com/oyyd/frozen_east_text_detection.pb
