@@ -61,11 +61,11 @@ geometry_msgs::msg::Quaternion rpy_to_quaternion(double roll, double pitch, doub
 constexpr uint16_t CONSECUTIVE_FRAMES_THRESHOLD = 5; //number of frames before any text is considered detected
 constexpr uint16_t DETECTION_COUNT_THRESHOLD = 10; //number of frames before specific text is considered detected
 
-class Sandbox : public rclcpp::Node
+class Inspection : public rclcpp::Node
 {
 public:
-  Sandbox()
-  : Node("sandbox")
+  Inspection()
+  : Node("inspection")
   {
 
     //Parameters
@@ -125,55 +125,50 @@ public:
     //Timers
     timer_ = create_wall_timer(
       static_cast<std::chrono::milliseconds>(static_cast<int>(interval_ * 1000.0)), 
-      std::bind(&Sandbox::timer_callback, this)
+      std::bind(&Inspection::timer_callback, this)
     );
 
     //Subscribers
     sub_detected_text_ = create_subscription<unitree_ocr_interfaces::msg::Detections>(
       "detected_text",
       10,
-      std::bind(&Sandbox::detected_text_callback, this, std::placeholders::_1)
+      std::bind(&Inspection::detected_text_callback, this, std::placeholders::_1)
     );
 
     //Services
     srv_reset_rpy_ = create_service<std_srvs::srv::Empty>(
       "reset_rpy",
-      std::bind(&Sandbox::reset_rpy_callback, this,
+      std::bind(&Inspection::reset_rpy_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_sweep_pitch_ = create_service<std_srvs::srv::Empty>(
       "sweep_pitch",
-      std::bind(&Sandbox::sweep_pitch_callback, this,
+      std::bind(&Inspection::sweep_pitch_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_stop_sweep_ = create_service<std_srvs::srv::Empty>(
       "stop_sweep",
-      std::bind(&Sandbox::stop_sweep_callback, this,
+      std::bind(&Inspection::stop_sweep_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_inspect_for_text_ = create_service<std_srvs::srv::Empty>(
       "inspect_for_text",
-      std::bind(&Sandbox::inspect_for_text_callback, this,
-                std::placeholders::_1, std::placeholders::_2)
-    );
-    srv_navigate_to_points_ = create_service<std_srvs::srv::Empty>(
-      "navigate_to_points",
-      std::bind(&Sandbox::navigate_to_points_callback, this,
+      std::bind(&Inspection::inspect_for_text_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_nav_to_pose_ = create_service<unitree_nav_interfaces::srv::NavToPose>(
       "unitree_nav_to_pose",
-      std::bind(&Sandbox::srv_nav_to_pose_callback, this,
+      std::bind(&Inspection::srv_nav_to_pose_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_cancel_nav_ = create_service<std_srvs::srv::Empty>(
       "unitree_cancel_nav",
-      std::bind(&Sandbox::cancel_nav_callback, this,
+      std::bind(&Inspection::cancel_nav_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
     srv_go_to_inspection_point_ = create_service<unitree_inspection_interfaces::srv::GoToInspectionPoint>(
       "go_to_inspection_point",
-      std::bind(&Sandbox::go_to_inspection_point_callback, this,
+      std::bind(&Inspection::go_to_inspection_point_callback, this,
                 std::placeholders::_1, std::placeholders::_2)
     );
 
@@ -195,7 +190,7 @@ public:
       };
     }
 
-    RCLCPP_INFO_STREAM(get_logger(), "sandbox node started");
+    RCLCPP_INFO_STREAM(get_logger(), "inspection node started");
   }
 
 private:
@@ -205,7 +200,6 @@ private:
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_sweep_pitch_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_stop_sweep_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_inspect_for_text_;
-  rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_navigate_to_points_;
   rclcpp::Service<unitree_nav_interfaces::srv::NavToPose>::SharedPtr srv_nav_to_pose_;
   rclcpp::Service<std_srvs::srv::Empty>::SharedPtr srv_cancel_nav_;
   rclcpp::Service<unitree_inspection_interfaces::srv::GoToInspectionPoint>::SharedPtr srv_go_to_inspection_point_;
@@ -247,7 +241,7 @@ private:
     auto new_state = state_ != state_last_;
 
     if (new_state) {
-      RCLCPP_INFO_STREAM(get_logger(), "Sandbox state changed to " << get_state_name(state_));
+      RCLCPP_INFO_STREAM(get_logger(), "Inspection state changed to " << get_state_name(state_));
 
       state_last_ = state_;
     }
@@ -281,11 +275,11 @@ private:
 
           auto send_goal_options = rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::SendGoalOptions();
           send_goal_options.goal_response_callback = 
-            std::bind(&Sandbox::goal_response_callback, this, std::placeholders::_1);
+            std::bind(&Inspection::goal_response_callback, this, std::placeholders::_1);
           send_goal_options.feedback_callback =
-            std::bind(&Sandbox::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
+            std::bind(&Inspection::feedback_callback, this, std::placeholders::_1, std::placeholders::_2);
           send_goal_options.result_callback =
-            std::bind(&Sandbox::result_callback, this, std::placeholders::_1);
+            std::bind(&Inspection::result_callback, this, std::placeholders::_1);
           act_nav_to_pose_->async_send_goal(goal_msg_, send_goal_options);
 
           state_next_ = State::WAIT_FOR_GOAL_RESPONSE;
@@ -469,10 +463,7 @@ private:
     const std::shared_ptr<std_srvs::srv::Empty::Request>,
     std::shared_ptr<std_srvs::srv::Empty::Response>
   ) {
-
-    //TODO - validate state?
     start_sweep_pitch();
-
   }
 
   void stop_sweep_callback(
@@ -488,23 +479,7 @@ private:
     const std::shared_ptr<std_srvs::srv::Empty::Request>,
     std::shared_ptr<std_srvs::srv::Empty::Response>
   ) {
-
-    //TODO - validate state?
     start_inspecting_for_text();
-  }
-
-  void navigate_to_points_callback(
-    const std::shared_ptr<std_srvs::srv::Empty::Request>,
-    std::shared_ptr<std_srvs::srv::Empty::Response>
-  ) {
-
-
-    navigating_to_points_ = true;
-
-    goal_pose_ = inspection_points_["200"]; //TODO make this not hardcoded
-
-    state_next_ = State::SEND_GOAL;
-
   }
 
   void go_to_inspection_point_callback(
@@ -614,7 +589,7 @@ geometry_msgs::msg::Quaternion rpy_to_quaternion(double roll, double pitch, doub
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Sandbox>());
+  rclcpp::spin(std::make_shared<Inspection>());
   rclcpp::shutdown();
   return 0;
 }
