@@ -12,6 +12,21 @@ find_package(std_srvs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
 find_package(unitree_ocr_interfaces REQUIRED)
 
+add_executable(tricks src/tricks.cpp)
+ament_target_dependencies(tricks
+  rclcpp std_srvs unitree_nav_interfaces unitree_ocr_interfaces
+)
+
+install(TARGETS
+  tricks
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
