@@ -14,6 +14,8 @@ using namespace std::chrono_literals;
 X(STARTUP, "STARTUP") \
 X(SETTING_RPY_START, "SETTING_RPY_START") \
 X(SETTING_RPY_WAIT, "SETTING_RPY_WAIT") \
+X(WAIT_FOR_COMMAND, "WAIT_FOR_COMMAND") \
+X(STAND_START, "STAND_START") \
 
 #define X(state, name) state,
 enum class State : size_t {STATES};
@@ -35,6 +37,12 @@ auto get_state_name(State state) {
   return STATE_NAMES[to_value(state)];
 }
 
+
+std::unordered_map<std::string, State> VALID_COMMANDS {
+   {"lay down", State::STARTUP}
+  ,{"stand", State::STAND_START}
+};
+
 class Tricks : public rclcpp::Node
 {
 public:
@@ -45,10 +53,21 @@ public:
     //Parameters
     auto param = rcl_interfaces::msg::ParameterDescriptor{};
 
+    param.description = "Consecutive frames of detection before detected command is accepted";
+    declare_parameter("detection_count_threshold", 3, param);
+    detection_count_threshold_ = get_parameter("detection_count_threshold").get_parameter_value().get<int>();
+
     //Timers
     timer_ = create_wall_timer(
       static_cast<std::chrono::milliseconds>(static_cast<int>(interval_ * 1000.0)), 
       std::bind(&Tricks::timer_callback, this)
+    );
+
+    //Subscribers
+    sub_detected_text_ = create_subscription<unitree_ocr_interfaces::msg::Detections>(
+      "detected_text",
+      10,
+      std::bind(&Tricks::detected_text_callback, this, std::placeholders::_1)
     );
 
     //Clients
@@ -59,6 +78,7 @@ public:
 
 private:
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Subscription<unitree_ocr_interfaces::msg::Detections>::SharedPtr sub_detected_text_;
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
 
   State state_ = State::STARTUP;
@@ -66,6 +86,9 @@ private:
   State state_next_ = state_;
   double rate_ = 100.0; //Hz
   double interval_ = 1.0 / rate_; //seconds
+  rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedFuture rpy_future_;
+  int detection_count_threshold_;
+  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
 
   void timer_callback() {
 
@@ -83,11 +106,62 @@ private:
     switch (state_) {
       case State::STARTUP:
       {
+        state_next_ = State::SETTING_RPY_START;
         break;
+      }
+      case State::SETTING_RPY_START:
+      {
+        //Make dog look up to read signs
+        if (cli_set_rpy_->wait_for_service(0s)) {
+          std::shared_ptr<unitree_nav_interfaces::srv::SetBodyRPY::Request> rpy_request =
+            std::make_shared<unitree_nav_interfaces::srv::SetBodyRPY::Request>();
+
+            rpy_request->pitch = -0.6; //TODO make parameter?
+
+          rpy_future_ = cli_set_rpy_->async_send_request(rpy_request).future.share();
+          state_next_ = State::SETTING_RPY_WAIT;
+        }
+        break;
+      }
+      case State::SETTING_RPY_WAIT:
+      {
+        if (rpy_future_.wait_for(0s) == std::future_status::ready) {
+            state_next_ = State::WAIT_FOR_COMMAND;
+        }
+        break;
+      }
+      case State::WAIT_FOR_COMMAND:
+      {
+
+        //Iterate through detected text
+        for (const auto & detection : detected_text_->data) {
+          //Skip anything that doesn't have enough detections
+          if (detection.count < detection_count_threshold_) {
+            continue;
+          }
+
+          auto detection_itr = VALID_COMMANDS.find(detection.text);
+
+          //If text is in valid commands, begin that command
+          if (detection_itr != VALID_COMMANDS.end()) {
+            //Go to the appropriate next state to trigger command
+            state_next_ = detection_itr->second;
+          }
+        }
+        break;
+      }
+      case State::STAND_START:
+      {
+        //TODO
+        state_next_ = State::STARTUP;
       }
       default:
         break;
     }
+  }
+
+  void detected_text_callback(const unitree_ocr_interfaces::msg::Detections::SharedPtr msg) {
+    detected_text_ = msg;
   }
 };
 
