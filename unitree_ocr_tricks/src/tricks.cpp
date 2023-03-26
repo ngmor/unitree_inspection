@@ -88,7 +88,8 @@ private:
   double interval_ = 1.0 / rate_; //seconds
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedFuture rpy_future_;
   int detection_count_threshold_;
-  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
+  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_ =
+    std::make_shared<unitree_ocr_interfaces::msg::Detections>();
 
   void timer_callback() {
 
@@ -97,7 +98,7 @@ private:
     auto new_state = state_ != state_last_;
 
     if (new_state) {
-      RCLCPP_INFO_STREAM(get_logger(), "Inspection state changed to " << get_state_name(state_));
+      RCLCPP_INFO_STREAM(get_logger(), "Tricks state changed to " << get_state_name(state_));
 
       state_last_ = state_;
     }
@@ -135,6 +136,7 @@ private:
 
         //Iterate through detected text
         for (const auto & detection : detected_text_->data) {
+
           //Skip anything that doesn't have enough detections
           if (detection.count < detection_count_threshold_) {
             continue;

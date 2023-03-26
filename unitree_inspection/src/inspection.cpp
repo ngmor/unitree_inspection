@@ -225,7 +225,8 @@ private:
   bool sweeping_upwards_ = true;
   rclcpp::Time last_sweep_time_;
   bool inspecting_for_text_ = false;
-  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_;
+  unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_=
+    std::make_shared<unitree_ocr_interfaces::msg::Detections>();
   Pose2D goal_pose_;
   bool navigating_to_points_ = false;
   rclcpp_action::Client<nav2_msgs::action::NavigateToPose>::Goal goal_msg_ {};
