@@ -11,7 +11,9 @@ using namespace std::chrono_literals;
 
 //https://stackoverflow.com/questions/11714325/how-to-get-enum-item-name-from-its-value
 #define STATES \
-X(IDLE, "IDLE") \
+X(STARTUP, "STARTUP") \
+X(SETTING_RPY_START, "SETTING_RPY_START") \
+X(SETTING_RPY_WAIT, "SETTING_RPY_WAIT") \
 
 #define X(state, name) state,
 enum class State : size_t {STATES};
@@ -33,10 +35,10 @@ auto get_state_name(State state) {
   return STATE_NAMES[to_value(state)];
 }
 
-class Inspection : public rclcpp::Node
+class Tricks : public rclcpp::Node
 {
 public:
-  Inspection()
+  Tricks()
   : Node("tricks")
   {
 
@@ -46,27 +48,53 @@ public:
     //Timers
     timer_ = create_wall_timer(
       static_cast<std::chrono::milliseconds>(static_cast<int>(interval_ * 1000.0)), 
-      std::bind(&Inspection::timer_callback, this)
+      std::bind(&Tricks::timer_callback, this)
     );
+
+    //Clients
+    cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
 
     RCLCPP_INFO_STREAM(get_logger(), "tricks node started");
   }
 
 private:
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
 
-	double rate_ = 100.0; //Hz
+  State state_ = State::STARTUP;
+  State state_last_ = state_;
+  State state_next_ = state_;
+  double rate_ = 100.0; //Hz
   double interval_ = 1.0 / rate_; //seconds
 
   void timer_callback() {
 
+    state_ = state_next_;
+
+    auto new_state = state_ != state_last_;
+
+    if (new_state) {
+      RCLCPP_INFO_STREAM(get_logger(), "Inspection state changed to " << get_state_name(state_));
+
+      state_last_ = state_;
+    }
+
+    //State machine here
+    switch (state_) {
+      case State::STARTUP:
+      {
+        break;
+      }
+      default:
+        break;
+    }
   }
 };
 
 int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Inspection>());
+  rclcpp::spin(std::make_shared<Tricks>());
   rclcpp::shutdown();
   return 0;
 }
