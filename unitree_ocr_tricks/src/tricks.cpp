@@ -49,9 +49,15 @@ public:
     //Parameters
     auto param = rcl_interfaces::msg::ParameterDescriptor{};
 
-    param.description = "Consecutive frames of detection before detected command is accepted";
+    param.description = "Consecutive frames of detection before detected command is accepted.";
     declare_parameter("detection_count_threshold", 3, param);
     detection_count_threshold_ = get_parameter("detection_count_threshold").get_parameter_value().get<int>();
+
+    param.description = "How long to wait after executing a command to accept a new one, in seconds.";
+    declare_parameter("post_command_delay", 5.0, param);
+    auto post_command_delay = get_parameter("post_command_delay").get_parameter_value().get<double>();
+    post_command_delay_ms_ = static_cast<uint64_t>(post_command_delay * 1000.0);
+
 
     //Timers
     timer_ = create_wall_timer(
@@ -85,6 +91,7 @@ private:
   State state_next_ = state_;
   double rate_ = 100.0; //Hz
   double interval_ = 1.0 / rate_; //seconds
+  uint64_t interval_ms_ = static_cast<uint64_t>(interval_ * 1000.0);
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedFuture rpy_future_;
   std::unordered_map<std::string, rclcpp::Client<std_srvs::srv::Empty>::SharedPtr> valid_commands_ {};
   std::unordered_map<std::string, rclcpp::Client<std_srvs::srv::Empty>::SharedPtr>::iterator command_;
@@ -92,9 +99,12 @@ private:
   unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_ =
     std::make_shared<unitree_ocr_interfaces::msg::Detections>();
   rclcpp::Client<std_srvs::srv::Empty>::SharedFuture empty_future_;
+  uint64_t post_command_delay_ms_;
 
 
   void timer_callback() {
+    static uint64_t delay_counter = 0;
+
 
     state_ = state_next_;
 
@@ -192,11 +202,16 @@ private:
       case State::POST_COMMAND_DELAY:
       {
         if (new_state) {
-          //TODO
+          //reset delay counter
+          delay_counter = 0;
         }
 
-        //TODO
-        state_next_ = State::SETTING_RPY_START;
+        if (delay_counter >= post_command_delay_ms_) {
+          state_next_ = State::SETTING_RPY_START;
+        }
+
+        delay_counter += interval_ms_;
+        break;
       }
       default:
         break;
