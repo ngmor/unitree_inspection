@@ -75,6 +75,11 @@ public:
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
     valid_commands_["stand"] = create_client<std_srvs::srv::Empty>("recover_stand");
+    valid_commands_["sit"] = create_client<std_srvs::srv::Empty>("lay_down");
+    valid_commands_["jump"] = create_client<std_srvs::srv::Empty>("jump_yaw");
+    valid_commands_["beg"] = create_client<std_srvs::srv::Empty>("beg");
+    valid_commands_["dancea"] = create_client<std_srvs::srv::Empty>("dance1");
+    valid_commands_["danceb"] = create_client<std_srvs::srv::Empty>("dance2");
 
     //Use a nullptr to initialize a command that does not use std_srvs/srv/Empty
 
