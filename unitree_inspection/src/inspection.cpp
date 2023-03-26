@@ -404,12 +404,14 @@ private:
             sweeping_ = false;
             inspecting_for_text_ = false;
             state_next_ = State::SETTING_RPY_START;
+
+            //Break out of detection loop
+            break;
           }
 
         }
 
-
-        
+        break;
       }
       default:
         break;

@@ -15,7 +15,9 @@ X(STARTUP, "STARTUP") \
 X(SETTING_RPY_START, "SETTING_RPY_START") \
 X(SETTING_RPY_WAIT, "SETTING_RPY_WAIT") \
 X(WAIT_FOR_COMMAND, "WAIT_FOR_COMMAND") \
-X(STAND_START, "STAND_START") \
+X(EMPTY_SRV_START, "EMPTY_SRV_START") \
+X(EMPTY_SRV_WAIT, "EMPTY_SRV_WAIT") \
+X(POST_COMMAND_DELAY, "POST_COMMAND_DELAY") \
 
 #define X(state, name) state,
 enum class State : size_t {STATES};
@@ -36,12 +38,6 @@ auto to_value(Enumeration const value)
 auto get_state_name(State state) {
   return STATE_NAMES[to_value(state)];
 }
-
-
-std::unordered_map<std::string, State> VALID_COMMANDS {
-   {"lay down", State::STARTUP}
-  ,{"stand", State::STAND_START}
-};
 
 class Tricks : public rclcpp::Node
 {
@@ -72,6 +68,9 @@ public:
 
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
+    valid_commands_["stand"] = create_client<std_srvs::srv::Empty>("recover_stand");
+
+    //Use a nullptr to initialize a command that does not use std_srvs/srv/Empty
 
     RCLCPP_INFO_STREAM(get_logger(), "tricks node started");
   }
@@ -87,9 +86,13 @@ private:
   double rate_ = 100.0; //Hz
   double interval_ = 1.0 / rate_; //seconds
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedFuture rpy_future_;
+  std::unordered_map<std::string, rclcpp::Client<std_srvs::srv::Empty>::SharedPtr> valid_commands_ {};
+  std::unordered_map<std::string, rclcpp::Client<std_srvs::srv::Empty>::SharedPtr>::iterator command_;
   int detection_count_threshold_;
   unitree_ocr_interfaces::msg::Detections::SharedPtr detected_text_ =
     std::make_shared<unitree_ocr_interfaces::msg::Detections>();
+  rclcpp::Client<std_srvs::srv::Empty>::SharedFuture empty_future_;
+
 
   void timer_callback() {
 
@@ -142,20 +145,58 @@ private:
             continue;
           }
 
-          auto detection_itr = VALID_COMMANDS.find(detection.text);
+          command_ = valid_commands_.find(detection.text);
 
           //If text is in valid commands, begin that command
-          if (detection_itr != VALID_COMMANDS.end()) {
-            //Go to the appropriate next state to trigger command
-            state_next_ = detection_itr->second;
+          if (command_ != valid_commands_.end()) {
+
+            //If the value of the map is not null, this is a std_srvs/srv/Empty service
+            //That can be called in a standard way
+            if (command_->second) {
+              state_next_ = State::EMPTY_SRV_START;
+            } else { //nullptrs can be used for commands that won't use std_srvs/srv/Empty
+              //if necessary, implement other commands here
+              RCLCPP_ERROR_STREAM(get_logger(), "Unimplemented command: " << command_->first);
+            }
+
+            //break out of detection loop
+            break;
           }
         }
         break;
       }
-      case State::STAND_START:
+      case State::EMPTY_SRV_START:
       {
+        //if service isn't available, quit
+        if (!command_->second->wait_for_service(0s)) {
+          RCLCPP_ERROR_STREAM(get_logger(), command_->first << " service not available.");
+          state_next_ = State::SETTING_RPY_START;
+        
+        //If service is available, call it
+        } else {
+          RCLCPP_INFO_STREAM(get_logger(), "Calling " << command_->first << " service.");
+          std::shared_ptr<std_srvs::srv::Empty::Request> request = std::make_shared<std_srvs::srv::Empty::Request>();
+
+          empty_future_ = command_->second->async_send_request(request).future.share();
+          state_next_ = State::EMPTY_SRV_WAIT;
+        }
+        break;
+      }
+      case State::EMPTY_SRV_WAIT:
+      {
+        if (empty_future_.wait_for(0s) == std::future_status::ready) {
+          state_next_ = State::POST_COMMAND_DELAY;
+        }
+        break;
+      }
+      case State::POST_COMMAND_DELAY:
+      {
+        if (new_state) {
+          //TODO
+        }
+
         //TODO
-        state_next_ = State::STARTUP;
+        state_next_ = State::SETTING_RPY_START;
       }
       default:
         break;
