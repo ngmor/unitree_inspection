@@ -1,5 +1,7 @@
 #include <string>
 #include <unordered_map>
+#include <algorithm>
+#include <cctype>
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "cv_bridge/cv_bridge.h"
@@ -96,6 +98,14 @@ public:
     declare_parameter("display_size_multiplier", 1.0, param);
     display_size_multiplier_ = get_parameter("display_size_multiplier").get_parameter_value().get<double>();
 
+    param.description = "Process text to make it all one case.";
+    declare_parameter("homogenize_case", false, param);
+    homogenize_case_ = get_parameter("homogenize_case").get_parameter_value().get<bool>();
+
+    param.description = "If homogenizing case, use lower case. Otherwise upper case will be used.";
+    declare_parameter("use_lower_case", true, param);
+    use_lower_case_ = get_parameter("use_lower_case").get_parameter_value().get<bool>();
+
     //Abort if any required parameters were not provided
     if (!required_parameters_received) {
       throw std::logic_error(
@@ -147,7 +157,7 @@ private:
   double display_size_multiplier_;
   consecutive_detection_map_t consecutive_detections_ {};
   uint16_t consecutive_frames_with_detections_ = 0;
-  
+  bool homogenize_case_, use_lower_case_;
 
   void image_callback(
     const sensor_msgs::msg::Image::ConstSharedPtr& img,
@@ -169,7 +179,19 @@ private:
     //draw text on image
     for (size_t i = 0; i < detector_->results_size(); i++) {
       auto [quadrangle, text] = detector_->result(i);
+
       cv::putText(frame, text, quadrangle[3], cv::FONT_HERSHEY_SIMPLEX, 1.5, cv::Scalar(0, 0, 255), 2);
+
+      //Homogenize text case if this setting is turned on
+      if (homogenize_case_) {
+        if (use_lower_case_) {
+          std::transform(text.begin(), text.end(), text.begin(),
+            [](unsigned char c){ return std::tolower(c); });
+        } else {
+          std::transform(text.begin(), text.end(), text.begin(),
+            [](unsigned char c){ return std::toupper(c); });
+        }
+      }
 
       //See if we saw this text in the last frame
       auto last_detection = consecutive_detections_.find(text);

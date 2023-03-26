@@ -29,6 +29,10 @@ def generate_launch_description():
                     'text_detection_subscriber.launch.py'
                 ])
             ),
+            launch_arguments=[
+                ('homogenize_case', 'true'),
+                ('use_lower_case', 'true'),
+            ],
         ),
 
         IncludeLaunchDescription(

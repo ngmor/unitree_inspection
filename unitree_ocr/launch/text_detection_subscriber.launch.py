@@ -21,10 +21,25 @@ def generate_launch_description():
             choices=['true', 'false'],
             description='Swap the red and blue color channels in the input image',
         ),
+
         DeclareLaunchArgument(
             name='display_size_multiplier',
             default_value='1.0',
             description='Change the size of the displayed image',
+        ),
+
+        DeclareLaunchArgument(
+            name='homogenize_case',
+            default_value='false',
+            choices=['true', 'false'],
+            description='Process text to make it all one case.',
+        ),
+
+        DeclareLaunchArgument(
+            name='use_lower_case',
+            default_value='true',
+            choices=['true', 'false'],
+            description='If homogenizing case, use lower case. Otherwise upper case will be used.',
         ),
 
         Node(
@@ -70,6 +85,8 @@ def generate_launch_description():
                     ]),
                 'swap_rb': LaunchConfiguration('swap_rb'),
                 'display_size_multiplier': LaunchConfiguration('display_size_multiplier'),
+                'homogenize_case': LaunchConfiguration('homogenize_case'),
+                'use_lower_case': LaunchConfiguration('use_lower_case'),
             }],
             remappings=[
                 ('/image/compressed', '/head/front/cam/image_rect/left/compressed'),
