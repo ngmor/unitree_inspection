@@ -3,6 +3,7 @@
 #include <unordered_map>
 #include "rclcpp/rclcpp.hpp"
 #include "std_srvs/srv/empty.hpp"
+#include "ros2_unitree_legged_msgs/msg/high_state.hpp"
 #include "unitree_nav_interfaces/srv/set_body_rpy.hpp"
 #include "unitree_ocr_interfaces/msg/detection.hpp"
 #include "unitree_ocr_interfaces/msg/detections.hpp"
@@ -39,6 +40,25 @@ auto get_state_name(State state) {
   return STATE_NAMES[to_value(state)];
 }
 
+//TODO move into a shared library
+enum class Go1Mode : uint8_t
+{
+   idle = 0
+  ,force_stand = 1
+  ,target_velocity_walking = 2
+  ,target_position_walking = 3
+  ,path_walking = 4
+  ,position_stand_down = 5
+  ,position_stand_up = 6
+  ,damping = 7
+  ,recovery_stand = 8
+  ,backflip = 9
+  ,jump_yaw = 10
+  ,straight_hand = 11
+  ,dance1 = 12
+  ,dance2 = 13
+};
+
 class Tricks : public rclcpp::Node
 {
 public:
@@ -54,7 +74,7 @@ public:
     detection_count_threshold_ = get_parameter("detection_count_threshold").get_parameter_value().get<int>();
 
     param.description = "How long to wait after executing a command to accept a new one, in seconds.";
-    declare_parameter("post_command_delay", 5.0, param);
+    declare_parameter("post_command_delay", 2.0, param);
     auto post_command_delay = get_parameter("post_command_delay").get_parameter_value().get<double>();
     post_command_delay_ms_ = static_cast<uint64_t>(post_command_delay * 1000.0);
 
@@ -71,11 +91,16 @@ public:
       10,
       std::bind(&Tricks::detected_text_callback, this, std::placeholders::_1)
     );
+    sub_high_state_ = create_subscription<ros2_unitree_legged_msgs::msg::HighState>(
+      "high_state",
+      10,
+      std::bind(&Tricks::high_state_callback, this, std::placeholders::_1)
+    );
 
     //Clients
     cli_set_rpy_ = create_client<unitree_nav_interfaces::srv::SetBodyRPY>("set_body_rpy");
     valid_commands_["stand"] = create_client<std_srvs::srv::Empty>("recover_stand");
-    valid_commands_["sit"] = create_client<std_srvs::srv::Empty>("lay_down");
+    valid_commands_["down"] = create_client<std_srvs::srv::Empty>("lay_down");
     valid_commands_["jump"] = create_client<std_srvs::srv::Empty>("jump_yaw");
     valid_commands_["beg"] = create_client<std_srvs::srv::Empty>("beg");
     valid_commands_["dancea"] = create_client<std_srvs::srv::Empty>("dance1");
@@ -89,6 +114,7 @@ public:
 private:
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp::Subscription<unitree_ocr_interfaces::msg::Detections>::SharedPtr sub_detected_text_;
+  rclcpp::Subscription<ros2_unitree_legged_msgs::msg::HighState>::SharedPtr sub_high_state_;
   rclcpp::Client<unitree_nav_interfaces::srv::SetBodyRPY>::SharedPtr cli_set_rpy_;
 
   State state_ = State::STARTUP;
@@ -105,6 +131,8 @@ private:
     std::make_shared<unitree_ocr_interfaces::msg::Detections>();
   rclcpp::Client<std_srvs::srv::Empty>::SharedFuture empty_future_;
   uint64_t post_command_delay_ms_;
+  ros2_unitree_legged_msgs::msg::HighState::SharedPtr high_state_ =
+    std::make_shared<ros2_unitree_legged_msgs::msg::HighState>();
 
 
   void timer_callback() {
@@ -212,10 +240,18 @@ private:
         }
 
         if (delay_counter >= post_command_delay_ms_) {
-          state_next_ = State::SETTING_RPY_START;
+
+          //Wait for Go1 to return to force stand or stand down mode before
+          //looking back up
+          if ((high_state_->mode == to_value(Go1Mode::force_stand))
+          || high_state_->mode == to_value(Go1Mode::position_stand_down)) {
+            state_next_ = State::SETTING_RPY_START;
+          }
+          
+        } else {
+          delay_counter += interval_ms_;
         }
 
-        delay_counter += interval_ms_;
         break;
       }
       default:
@@ -225,6 +261,10 @@ private:
 
   void detected_text_callback(const unitree_ocr_interfaces::msg::Detections::SharedPtr msg) {
     detected_text_ = msg;
+  }
+
+  void high_state_callback(const ros2_unitree_legged_msgs::msg::HighState::SharedPtr msg) {
+    high_state_ = msg;
   }
 };
 

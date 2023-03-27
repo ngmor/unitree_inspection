@@ -9,12 +9,13 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(ros2_unitree_legged_msgs REQUIRED)
 find_package(unitree_nav_interfaces REQUIRED)
 find_package(unitree_ocr_interfaces REQUIRED)
 
 add_executable(tricks src/tricks.cpp)
 ament_target_dependencies(tricks
-  rclcpp std_srvs unitree_nav_interfaces unitree_ocr_interfaces
+  rclcpp std_srvs ros2_unitree_legged_msgs unitree_nav_interfaces unitree_ocr_interfaces
 )
 
 install(TARGETS

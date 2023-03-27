@@ -11,6 +11,7 @@
   <depend>std_srvs</depend>
   <depend>unitree_nav_interfaces</depend>
   <depend>unitree_ocr_interfaces</depend>
+  <depend>ros2_unitree_legged_msgs</depend>
 
   <exec_depend>unitree_nav</exec_depend>
   <exec_depend>unitree_ocr</exec_depend>
